@@ -1,0 +1,53 @@
+---
+name: App::Beckley
+store: /var/archive/store
+cache_time: 10800
+Model::Read:
+    connect_info:
+        - "dbi:mysql:database=beckley;host=127.0.0.1"
+        - "root"
+        - ""
+        -
+            quote_char: '`'
+            name_sep: .
+            mysql_enable_utf8: 1
+Model::Write:
+    connect_info:
+        - "dbi:mysql:database=beckley;host=127.0.0.1"
+        - "root"
+        - ""
+        -
+            quote_char: '`'
+            name_sep: .
+            mysql_enable_utf8: 1
+fallback:
+    key:
+        - key: product_nocover
+          regex: !!perl/regexp (?-xism:^product_)
+macros:
+    original:
+        format: image/jpeg
+    tiniest:
+        format: image/jpeg
+        actions:
+            - p: image::transform
+              a: scale
+              v: w60
+    tiny:
+        format: image/gif
+        actions:
+            - p: image::transform
+              a: scale
+              v: w75
+    small:
+        format: image/jpeg
+        actions:
+            - p: image::transform
+              a: scale
+              v: w90
+    medium:
+        format: image/gif
+        actions:
+            - p: image::transform
+              a: scale
+              v: w175
