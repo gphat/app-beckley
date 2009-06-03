@@ -17,7 +17,7 @@ our $VERSION = '0.01';
 
 use Catalyst;
 
-use parent 'Catalyst';
+use base 'Catalyst';
 
 __PACKAGE__->setup(qw/ConfigLoader Static::Simple SubRequest/);
 

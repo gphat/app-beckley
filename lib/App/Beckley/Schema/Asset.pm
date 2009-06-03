@@ -15,7 +15,7 @@ See the 'assets' table for all the methods.
 
 =cut
 
-use parent 'DBIx::Class';
+use base 'DBIx::Class';
 
 __PACKAGE__->load_components(qw(TimeStamp Core));
 __PACKAGE__->table('assets');

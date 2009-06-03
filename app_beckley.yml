@@ -3,6 +3,7 @@ name: App::Beckley
 store: /var/archive/store
 cache_time: 10800
 Model::Read:
+    schema_class: App::Beckley::Schema
     connect_info:
         - "dbi:mysql:database=beckley;host=127.0.0.1"
         - "root"
@@ -12,6 +13,7 @@ Model::Read:
             name_sep: .
             mysql_enable_utf8: 1
 Model::Write:
+    schema_class: App::Beckley::Schema
     connect_info:
         - "dbi:mysql:database=beckley;host=127.0.0.1"
         - "root"
@@ -20,6 +22,7 @@ Model::Write:
             quote_char: '`'
             name_sep: .
             mysql_enable_utf8: 1
+redirect_url: http://www.magazines.com
 fallback:
     key:
         - key: product_nocover

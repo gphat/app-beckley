@@ -32,13 +32,12 @@ __PACKAGE__->config->{namespace} = '';
 sub index : Path Args(0) {
     my ( $self, $c ) = @_;
 
-    # Hello World
-    $c->response->redirect('http://www.magazines.com');
+    $c->response->redirect($c->config->{redirect_url});
 }
 
 sub default : Path {
     my ( $self, $c ) = @_;
-    $c->response->redirect('http://www.magazines.com');
+    $c->response->redirect($c->config->{redirect_url});
 }
 
 =head2 end
