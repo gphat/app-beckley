@@ -26,12 +26,16 @@ Sets up this asset for image processing
 =cut
 
 sub default : Private {
-    my ($self, $c) = @_;
+    my ($self, $c, $name, $ass) = @_;
 
-    my $asset = $c->stash->{'context'}->{'asset'};
+    $c->log->error("L: ".$name . ": $ass");
+
+    return if defined($c->stash->{assets}->{$name}->{image});
+
+    my $asset = $c->stash->{assets}->{$name}->{asset};
     $c->response->headers->last_modified($asset->date_created->epoch);
 
-    my $mime = $c->stash->{'context'}->{'asset'}->mime_type;
+    my $mime = $asset->mime_type;
     my $type;
     if($mime =~ /image\/(\w+)/) {
         $type = $1;
@@ -40,25 +44,25 @@ sub default : Private {
     my $img = Imager->new;
     if(defined($type)) {
         $img->read(
-            file => $c->stash->{'context'}->{'path'},
+            file => $c->stash->{assets}->{$name}->{path},
             type => $type
         ) or $c->detach('error', [ $img->errstr ]);
     } else {
-        $img->read(file => $c->stash->{'context'}->{'path'})
+        $img->read(file => $c->stash->{assets}->{$name}->{path})
             or $c->detach('error', [ $img->errstr ]);
     }
-    $c->stash->{'context'}->{'image'} = $img;
+    $c->stash->{assets}->{$name}->{image} = $img;
 
-    if($c->req->params->{'format'}) {
-        $c->stash->{'format'} = 'image/'.$c->req->params->{'format'};
-    }
+    # if($c->req->params->{'format'}) {
+    #     $c->stash->{'format'} = 'image/'.$c->req->params->{'format'};
+    # }
 
-    my $itype = $c->stash->{'format'}
-        || $c->stash->{context}->{asset}->mime_type;
-    $c->stash->{as} = {
-        action => 'image',
-        arg => $itype
-    };
+    # my $itype = $c->stash->{'format'}
+    #     || $c->stash->{context}->{asset}->mime_type;
+    # $c->stash->{as} = {
+    #     action => 'image',
+    #     arg => $itype
+    # };
 }
 
 sub error : Private {

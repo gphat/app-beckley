@@ -25,12 +25,14 @@ use base 'Catalyst::Controller';
 =cut
 
 sub gaussian : Private {
-    my ($self, $c, $args) = @_;
+    my ($self, $c, $name, $args) = @_;
+
+    $c->forward('/image/default', [ $name ]);
 
     $args ||= 1;
 
     $c->log->debug('Calling guassian filter with stddev of '.$args);
-    $c->stash->{context}->{image}->filter(
+    $c->stash->{assets}->{$name}->{image}->filter(
         type => 'gaussian', stddev => $args
     );
 }
@@ -39,12 +41,12 @@ sub gaussian : Private {
 
 =cut
 
-sub grayscale : Private
-{
-	my $self	= shift;
-	my $c		= shift;
+sub grayscale : Private {
+    my ($self, $c, $name, $args) = @_;
 
-	my $img		= $c->stash->{context}->{image};
+    $c->forward('/image/default', [ $name ]);
+
+	my $img		= $c->stash->{assets}->{$name}->{image};
 	my $gray	= $img->convert(preset => 'grey');
 	my $width	= $img->getwidth;
 	my $height	= $img->getheight;

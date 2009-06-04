@@ -97,6 +97,7 @@ sub store_upload {
         );
 
         unless($resp->is_success) {
+            print $resp->status_line."\n";
             $self->error($resp->status_line);
             return 0;
         }

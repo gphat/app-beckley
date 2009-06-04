@@ -27,9 +27,11 @@ horizontal.  You can also combine the two (e.g. hv or vh).
 =cut
 
 sub flip : Private {
-    my ($self, $c, $args) = @_;
+    my ($self, $c, $name, $args) = @_;
 
-    $c->stash->{'context'}->{'image'}->flip(dir => $args);
+    $c->forward('/image/default', [ $name ]);
+
+    $c->stash->{assets}->{$name}->{image}->flip(dir => $args);
 }
 
 =head2 rotate
@@ -47,14 +49,16 @@ Rotate an image.  Arguments should be one of:
 =cut
 
 sub rotate : Private {
-    my ($self, $c, $args) = @_;
+    my ($self, $c, $name, $args) = @_;
+
+    $c->forward('/image/default', [ $name ]);
 
     if($args =~ /^r([0-9\.]+)/) {
-        $c->stash->{context}->{image}
-            = $c->stash->{context}->{image}->rotate(radians => $1);
+        $c->stash->{assets}->{$name}->{image}
+            = $c->stash->{assets}->{$name}->{image}->rotate(radians => $1);
     } elsif($args =~ /^d([0-9\.]+)/) {
-        $c->stash->{context}->{image}
-            = $c->stash->{context}->{image}->rotate(degrees => $1);
+        $c->stash->{assets}->{$name}->{image}
+            = $c->stash->{assets}->{$name}->{image}->rotate(degrees => $1);
     }
 }
 
@@ -65,12 +69,7 @@ form:
 
 over 4
 
-=item fetchtype/key
-
-Fetches the specified key using the specified mechanism.  This can be in the
-form of C<key/unique_key> or C<uuid/unique_key>.
-
-=item fetchtype/key,x,y
+=item name,x,y
 
 Follows the same rules as the above, but allows an x,y coordinate at
 which to position the overlay.  Defaults to 0,0.  If you the supplied
@@ -84,13 +83,15 @@ height - 16 (effectively working from the bottom left corner).
 =cut
 
 sub overlay : Private {
-    my ($self, $c, $args) = @_;
+    my ($self, $c, $name, $args) = @_;
+
+    $c->forward('/image/default', [ $name ]);
 
     my @parts = split(/,/, $args);
 
     if($parts[1]) {
         if($parts[1] < 0) {
-            $parts[1] = $c->stash->{context}->{image}->getwidth - abs($parts[1]);
+            $parts[1] = $c->stash->{assets}->{$name}->{image}->getwidth - abs($parts[1]);
         }
     } else {
         $parts[1] = 0;
@@ -98,16 +99,22 @@ sub overlay : Private {
 
     if($parts[2]) {
         if($parts[2] < 0) {
-            $parts[2] = $c->stash->{context}->{image}->getheight - abs($parts[2]);
+            $parts[2] = $c->stash->{assets}->{$name}->{image}->getheight - abs($parts[2]);
         }
     } else {
         $parts[2] = 0;
     }
 
-    my $var = $c->subreq("/fetch/".$parts[0]."/image");
-    my $new_img = Imager->new;
-    $new_img->read(data => $var);
-    $c->stash->{context}->{image}->rubthrough(tx => $parts[1], ty => $parts[2], src => $new_img);
+    $c->log->error($parts[0]);
+    $c->forward('/image/default', [ $parts[0] ]);
+    use Data::Dumper;
+    $c->log->error(Dumper($c->stash->{assets}->{$parts[0]}->{image}));
+
+    $c->stash->{assets}->{$name}->{image}->rubthrough(
+        src => $c->stash->{assets}->{$parts[0]}->{image},
+        tx => $parts[1],
+        ty => $parts[2]
+    );
 }
 
 =head2 scale
@@ -131,21 +138,23 @@ Scales an image to the specified height, maintaining it's proportions.
 =cut
 
 sub scale : Private {
-    my ($self, $c, $args) = @_;
+    my ($self, $c, $name, $args) = @_;
+
+    $c->forward('/image/default', $name);
 
     if($args =~ /^(\d+)x(\d+)$/) {
-        $c->stash->{'context'}->{'image'}
-            = $c->stash->{'context'}->{'image'}->scale(
+        $c->stash->{assets}->{$name}->{image}
+            = $c->stash->{assets}->{$name}->{image}->scale(
                 xpixels => $1, ypixels => $2, qtype => 'mixing'
             );
     } elsif($args =~ /^w(\d+)$/) {
-        $c->stash->{'context'}->{'image'}
-            = $c->stash->{'context'}->{'image'}->scale(
+        $c->stash->{assets}->{$name}->{image}
+            = $c->stash->{assets}->{$name}->{image}->scale(
                 xpixels => $1, qtype => 'mixing'
             );
     } elsif($args =~ /^h(\d+)$/) {
-        $c->stash->{'context'}->{'image'}
-            = $c->stash->{'context'}->{'image'}->scale(
+        $c->stash->{assets}->{$name}->{image}
+            = $c->stash->{assets}->{$name}->{image}->scale(
                 ypixels => $1, qtype => 'mixing'
             );
     }

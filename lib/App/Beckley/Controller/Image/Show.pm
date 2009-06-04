@@ -1,11 +1,11 @@
-package App::Beckley::Controller::As;
+package App::Beckley::Controller::Image::Show;
 
 use strict;
 use warnings;
 
 =head1 NAME
 
-App::Beckley::Controller::As - Catalyst Controller
+App::Beckley::Controller::Image::Show - Catalyst Controller
 
 =head1 DESCRIPTION
 
@@ -28,8 +28,10 @@ Show the asset as an image
 
 =cut
 
-sub image : Private {
-    my ($self, $c, $type) = @_;
+sub as : Private {
+    my ($self, $c, $name, $type) = @_;
+
+    $c->forward('/image/default', $name);
 
     # Handle mime-type style images
     if($type =~ /^image\/(.*)/) {
@@ -43,7 +45,7 @@ sub image : Private {
     }
 
     my $data;
-    $c->stash->{context}->{image}->write(data => \$data, type => $type);
+    $c->stash->{assets}->{$name}->{image}->write(data => \$data, type => $type);
 
     my $ct = $c->config->{cache_time} || 10800;
     $c->response->headers->expires($ct + time);
@@ -51,23 +53,6 @@ sub image : Private {
     $c->response->content_length(length($data));
     $c->response->headers->content_type("image/$type");
     $c->response->body($data);
-}
-
-=head2 text
-
-Show the asset as an image
-
-=cut
-
-sub text : Private {
-    my ($self, $c, $type) = @_;
-
-    my $text = $c->stash->{context}->{text};
-    $c->response->content_length(length($text));
-
-    print STDERR "TEXT: $text\n";
-
-    $c->response->body($text);
 }
 
 =head1 AUTHOR

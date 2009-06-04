@@ -34,18 +34,30 @@ sub index : Private {
 	$c->response->redirect('http://www.magazines.com');
 }
 
+sub fetch_root : Chained('/') PathPart('') CaptureArgs(0) {
+    my ($self, $c) = @_;
+
+    $c->stash->{processes} = [];
+    $c->stash->{names} = [];
+    $c->stash->{actions} = [];
+    $c->stash->{values} = [];
+}
+
 =head2 uuid
 
 Start point for uuid based asset fetch
 
 =cut
 
-sub uuid : Chained('/') PathPart('fetch/uuid') CaptureArgs(1) {
+sub uuid : Chained('fetch_root') PathPart('fetch/uuid') Args(1) {
     my ($self, $c, $uuid) = @_;
 
-    $c->stash->{'context'}->{'asset'} = $c->model('Read::Asset')->find($uuid);
+    push(@{ $c->stash->{processes}}, 'load');
+    push(@{ $c->stash->{names}}, 'default');
+    push(@{ $c->stash->{actions}}, 'uuid');
+    push(@{ $c->stash->{values}}, $uuid);
 
-    $c->forward('post_fetch');
+    $c->detach('process');
 }
 
 =head2 key
@@ -54,50 +66,21 @@ Start point for key based asset fetch
 
 =cut
 
-sub key : Chained('/') PathPart('fetch/key') CaptureArgs(1) {
+sub key : Chained('fetch_root') PathPart('fetch/key') Args(1) {
     my ($self, $c, $key) = @_;
 
-    my $asset = $c->model('Read::Asset')->search(
-        { key => $key },
-        {
-            order_by => \'date_created DESC',
-            rows => 1,
-            page => $c->req->params->{'offset'} || 0
-        }
-    )->single;
+    push(@{ $c->stash->{processes}}, 'load');
+    push(@{ $c->stash->{names}}, 'default');
+    push(@{ $c->stash->{actions}}, 'key');
+    push(@{ $c->stash->{values}}, $key);
 
-    unless(defined($asset)) {
-        # Try and use a fallback
-        if(exists($c->config->{fallback})
-            && exists($c->config->{fallback}->{key})) {
-
-            foreach my $fallback (@{ $c->config->{fallback}->{key}}) {
-                $c->log->debug('Trying fallback.');
-                if($key =~ $fallback->{regex}) {
-                    $c->log->debug('Found fallback '.$fallback->{key});
-
-                    $asset = $c->model('Read::Asset')->search(
-                        { key => $fallback->{key} },
-                        {
-                            order_by => \'date_created DESC',
-                            rows => 1,
-                            page => $c->req->params->{'offset'} || 0
-                        }
-                    )->single;
-                }
-            }
-        }
-    }
-
-    $c->stash->{'context'}->{'asset'} = $asset;
-
-    $c->forward('post_fetch');
+    $c->detach('process');
 }
 
 sub post_fetch : Public {
     my ($self, $c) = @_;
 
-    my $asset = $c->stash->{'context'}->{'asset'};
+    my $asset = $c->stash->{assets}->{'default'};
     unless(defined($asset)) {
         $c->detach('not_found');
     }
@@ -115,28 +98,6 @@ sub post_fetch : Public {
     $c->stash->{'context'}->{'path'} = $file;
 }
 
-=head2 key_other
-
-Mid-point for key-based display
-
-=cut
-sub key_other : Chained('key') PathPart('') Args {
-    my ($self, $c, @args) = @_;
-
-    $c->detach('process');
-}
-
-=head2 uuid_other
-
-Mid-point for uuid-based display
-
-=cut
-sub uuid_other : Chained('uuid') PathPart('') Args {
-    my ($self, $c, @args) = @_;
-
-    $c->detach('process', \@args);
-}
-
 =head2 head
 
 Doesn't return any content, just the headers.  THis should probably be RESTy
@@ -148,8 +109,6 @@ sub head : Private {
 
     delete($c->stash->{context});
 }
-
-
 
 =head2 process
 
@@ -167,7 +126,7 @@ If C<as> is not set then the mime type will be set to the asset's default and
 the file will be served unmodified from the filesystem.
 
 =cut
-sub process : Private {
+sub process : Chained('/') PathPart('process') Args(0) {
     my ($self, $c, @args) = @_;
 
     if(scalar(@args)) {
@@ -187,9 +146,12 @@ sub process : Private {
 
     my $asset = $c->stash->{context}->{asset};
 
-    $c->stash->{processes} = [];
-    $c->stash->{actions} = [];
-    $c->stash->{values} = [];
+    unless(defined($c->stash->{processes})) {
+        $c->stash->{processes} = [];
+        $c->stash->{names} = [];
+        $c->stash->{actions} = [];
+        $c->stash->{values} = [];
+    }
 
     if($c->req->params->{macro}) {
         $c->forward('unroll_macro', [ $c->req->params->{macro} ]);
@@ -198,37 +160,48 @@ sub process : Private {
     # Get the process to run
     if(defined($c->req->params->{p})) {
         if(ref($c->req->params->{p}) eq 'ARRAY') {
-            push(@{ $c->stash->{processes} }, @{ $c->req->params->{'p'} });
+            push(@{ $c->stash->{processes} }, @{ $c->req->params->{p} });
         } else {
-            push(@{ $c->stash->{processes} }, $c->req->params->{'p'});
+            push(@{ $c->stash->{processes} }, $c->req->params->{p});
         }
     }
+
+    if(defined($c->req->params->{n})) {
+        if(ref($c->req->params->{n}) eq 'ARRAY') {
+            push(@{ $c->stash->{names} }, @{ $c->req->params->{n} });
+        } else {
+            push(@{ $c->stash->{names} }, $c->req->params->{n});
+        }
+    }
+
 
     # ...and the actions
     if(defined($c->req->params->{a})) {
         if(ref($c->req->params->{a}) eq 'ARRAY') {
-            push(@{ $c->stash->{actions} }, @{ $c->req->params->{'a'} });
+            push(@{ $c->stash->{actions} }, @{ $c->req->params->{a} });
         } else {
-            push(@{ $c->stash->{actions} }, $c->req->params->{'a'});
+            push(@{ $c->stash->{actions} }, $c->req->params->{a});
         }
     }
 
     # ...and finally the values to give to the actions
     if(defined($c->req->params->{v})) {
         if(ref($c->req->params->{v}) eq 'ARRAY') {
-            push(@{ $c->stash->{values} }, @{ $c->req->params->{'v'} });
+            push(@{ $c->stash->{values} }, @{ $c->req->params->{v} });
         } else {
-            push(@{ $c->stash->{values} }, $c->req->params->{'v'});
+            push(@{ $c->stash->{values} }, $c->req->params->{v});
         }
     }
 
     if($c->debug) {
         $c->log->debug('Processes:');
-        $c->log->debug(Dumper($c->stash->{'processes'}));
+        $c->log->debug(Dumper($c->stash->{processes}));
+        $c->log->debug('Names:');
+        $c->log->debug(Dumper($c->stash->{names}));
         $c->log->debug('Actions:');
-        $c->log->debug(Dumper($c->stash->{'actions'}));
+        $c->log->debug(Dumper($c->stash->{actions}));
         $c->log->debug('Values:');
-        $c->log->debug(Dumper($c->stash->{'values'}));
+        $c->log->debug(Dumper($c->stash->{values}));
     }
 
     my $count = 0;
@@ -237,15 +210,20 @@ sub process : Private {
     foreach my $p (@{ $c->stash->{processes} }) {
         my $con = $c->controller($p);
         if($con && $c->stash->{actions}->[$count]) {
+            my $name = $c->stash->{names}->[$count];
             my $act = $con->action_for($c->stash->{actions}->[$count]);
             $c->log->debug('Process: '.$p.' Action: '
                 .$c->stash->{actions}->[$count]
                 .' Value: '.$c->stash->{values}->[$count]
+                ." Name: $name"
             ) if $c->debug;
             if($act) {
+                $name ||= 'default';
                 $c->forward('/'.$act->reverse,
-                    [ $c->stash->{values}->[$count] ]
+                    [ $name, $c->stash->{values}->[$count] ]
                 );
+            } else {
+                $c->log->warn("Did not find $p:$a");
             }
         }
         $count++;
@@ -260,7 +238,7 @@ sub process : Private {
             );
         } else {
             # Or just serve it static!
-            my $fh = IO::File->new($c->stash->{'context'}->{'path'}, 'r');
+            my $fh = IO::File->new($c->stash->{assets}->{default}->{path}, 'r');
             binmode($fh);
             $c->res->body($fh);
         }
@@ -313,13 +291,14 @@ sub unroll_macro : Private {
 
     foreach my $act (@{ $mdata->{actions} }) {
         $c->log->debug(Dumper($act));
-        push(@{ $c->stash->{processes} }, $act->{'p'});
-        push(@{ $c->stash->{actions} }, $act->{'a'});
-        push(@{ $c->stash->{values} }, $act->{'v'});
+        push(@{ $c->stash->{processes} }, $act->{p});
+        push(@{ $c->stash->{names} }, $act->{n});
+        push(@{ $c->stash->{actions} }, $act->{a});
+        push(@{ $c->stash->{values} }, $act->{v});
     }
 
-    if($mdata->{'format'}) {
-        $c->stash->{'format'} = $mdata->{'format'};
+    if($mdata->{format}) {
+        $c->stash->{format} = $mdata->{format};
     }
 }
 
