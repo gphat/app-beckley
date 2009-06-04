@@ -29,28 +29,71 @@ fallback:
           regex: !!perl/regexp (?-xism:^product_)
 macros:
     original:
-        format: image/jpeg
+        actions:
+            - p: image::show
+              n: default
+              a: as
+              v: image/jpeg
     tiniest:
-        format: image/jpeg
         actions:
             - p: image::transform
+              n: default
               a: scale
               v: w60
+            - p: image::show
+              n: default
+              a: as
+              v: image/jpeg
+
     tiny:
-        format: image/gif
         actions:
             - p: image::transform
+              n: default
               a: scale
               v: w75
+            - p: image::show
+              n: default
+              a: as
+              v: image/gif
+
     small:
-        format: image/jpeg
         actions:
             - p: image::transform
+              n: default
               a: scale
               v: w90
+            - p: image::show
+              n: default
+              a: as
+              v: image/jpeg
+
     medium:
-        format: image/gif
         actions:
             - p: image::transform
+              n: default
               a: scale
               v: w175
+            - p: image::show
+              n: default
+              a: as
+              v: image/gif
+    lr_overlay:
+        actions:
+            - p: load
+              n: overlay
+              a: key
+              v: ${name}
+            - p: image::transform
+              n: overlay
+              a: scale
+              v: w100
+            - p: image::transform
+              n: default
+              a: overlay
+              v: overlay,-100,-150
+            - p: image::show
+              n: default
+              a: as
+              v: image/png
+
+                

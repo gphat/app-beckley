@@ -28,8 +28,6 @@ Sets up this asset for image processing
 sub default : Private {
     my ($self, $c, $name, $ass) = @_;
 
-    $c->log->error("L: ".$name . ": $ass");
-
     return if defined($c->stash->{assets}->{$name}->{image});
 
     my $asset = $c->stash->{assets}->{$name}->{asset};
@@ -52,17 +50,6 @@ sub default : Private {
             or $c->detach('error', [ $img->errstr ]);
     }
     $c->stash->{assets}->{$name}->{image} = $img;
-
-    # if($c->req->params->{'format'}) {
-    #     $c->stash->{'format'} = 'image/'.$c->req->params->{'format'};
-    # }
-
-    # my $itype = $c->stash->{'format'}
-    #     || $c->stash->{context}->{asset}->mime_type;
-    # $c->stash->{as} = {
-    #     action => 'image',
-    #     arg => $itype
-    # };
 }
 
 sub error : Private {

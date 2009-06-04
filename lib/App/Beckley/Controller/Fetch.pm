@@ -230,24 +230,16 @@ sub process : Chained('/') PathPart('process') Args(0) {
     }
 
     unless($c->response->body) {
-        # Honor the as...
-        if(defined($c->stash->{as})) {
-            $c->detach(
-                '/as/'.$c->stash->{as}->{action},
-                [ $c->stash->{as}->{arg} ]
-            );
-        } else {
-            # Or just serve it static!
-            my $fh = IO::File->new($c->stash->{assets}->{default}->{path}, 'r');
-            binmode($fh);
-            $c->res->body($fh);
-        }
+        # Or just serve it static!
+        my $fh = IO::File->new($c->stash->{assets}->{default}->{path}, 'r');
+        binmode($fh);
+        $c->res->body($fh);
     }
 }
 
 =head2 info
 
-Returnt the asset's info as JSON
+Return the asset's info as JSON
 
 =cut
 
@@ -292,13 +284,17 @@ sub unroll_macro : Private {
     foreach my $act (@{ $mdata->{actions} }) {
         $c->log->debug(Dumper($act));
         push(@{ $c->stash->{processes} }, $act->{p});
+
+        if($act->{n} =~ /^\$\{(\w+)\}$/) {
+            $act->{n} = $c->req->params->{$1};
+        }
         push(@{ $c->stash->{names} }, $act->{n});
         push(@{ $c->stash->{actions} }, $act->{a});
-        push(@{ $c->stash->{values} }, $act->{v});
-    }
 
-    if($mdata->{format}) {
-        $c->stash->{format} = $mdata->{format};
+        if($act->{v} =~ /^\$\{(\w+)\}$/) {
+            $act->{v} = $c->req->params->{$1};
+        }
+        push(@{ $c->stash->{values} }, $act->{v});
     }
 }
 

@@ -107,8 +107,6 @@ sub overlay : Private {
 
     $c->log->error($parts[0]);
     $c->forward('/image/default', [ $parts[0] ]);
-    use Data::Dumper;
-    $c->log->error(Dumper($c->stash->{assets}->{$parts[0]}->{image}));
 
     $c->stash->{assets}->{$name}->{image}->rubthrough(
         src => $c->stash->{assets}->{$parts[0]}->{image},
